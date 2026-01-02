@@ -8,41 +8,43 @@ mod renderer;
 mod table;
 mod text;
 mod theme;
+mod writer;
 
-use std::io::{self, Write};
-use std::time::Duration;
+use std::io;
 
 use streamdown_parser::Parser;
 
 use renderer::Renderer;
 pub use theme::Theme;
+pub use writer::StreamingWriter;
 
 /// Streaming renderer that buffers tokens and renders complete lines.
-struct StreamdownRenderer<W: Write> {
+/// Uses a background task for smooth character-by-character output.
+pub struct StreamdownRenderer {
     parser: Parser,
-    renderer: Renderer<W>,
+    renderer: Renderer<StreamingWriter>,
     line_buffer: String,
 }
 
-impl<W: Write> StreamdownRenderer<W> {
-    fn new(writer: W, width: usize) -> Self {
+impl StreamdownRenderer {
+    pub fn new(width: usize) -> Self {
         Self {
             parser: Parser::new(),
-            renderer: Renderer::new(writer, width),
+            renderer: Renderer::new(StreamingWriter::new(3), width),
             line_buffer: String::new(),
         }
     }
 
     #[allow(dead_code)]
-    fn with_theme(writer: W, width: usize, theme: Theme) -> Self {
+    pub fn with_theme(width: usize, theme: Theme) -> Self {
         Self {
             parser: Parser::new(),
-            renderer: Renderer::with_theme(writer, width, theme),
+            renderer: Renderer::with_theme(StreamingWriter::new(3), width, theme),
             line_buffer: String::new(),
         }
     }
 
-    fn push(&mut self, token: &str) -> io::Result<()> {
+    pub fn push(&mut self, token: &str) -> io::Result<()> {
         self.line_buffer.push_str(token);
 
         while let Some(pos) = self.line_buffer.find('\n') {
@@ -55,7 +57,8 @@ impl<W: Write> StreamdownRenderer<W> {
         Ok(())
     }
 
-    fn finish(&mut self) -> io::Result<()> {
+    /// Finish rendering and wait for all output to be written.
+    pub async fn finish(mut self) -> io::Result<()> {
         if !self.line_buffer.is_empty() {
             for event in self.parser.parse_line(&self.line_buffer) {
                 self.renderer.render_event(&event)?;
@@ -64,11 +67,12 @@ impl<W: Write> StreamdownRenderer<W> {
         for event in self.parser.finalize() {
             self.renderer.render_event(&event)?;
         }
-        Ok(())
+        self.renderer.into_writer().finish().await
     }
 }
 
-fn main() -> io::Result<()> {
+#[tokio::main]
+async fn main() -> io::Result<()> {
     let content = include_str!(
         "/Users/ranjit/Desktop/workspace/forge/plans/2025-04-02-system-context-rendering-final.md"
     );
@@ -77,14 +81,13 @@ fn main() -> io::Result<()> {
         .map(|(w, _)| w.0 as usize)
         .unwrap_or(188);
 
-    // Use default dark theme, or Theme::light() for light theme
-    let mut renderer = StreamdownRenderer::new(io::stdout(), width);
+    let mut renderer = StreamdownRenderer::new(width);
 
     for token in &tokens {
         renderer.push(token)?;
-        io::stdout().flush()?;
-        std::thread::sleep(Duration::from_millis(5));
     }
-    renderer.finish()?;
+
+    renderer.finish().await?;
+
     Ok(())
 }

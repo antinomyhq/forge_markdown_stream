@@ -330,4 +330,9 @@ impl<W: Write> Renderer<W> {
         }
         Ok(())
     }
+
+    /// Consume the renderer and return the inner writer.
+    pub fn into_writer(self) -> W {
+        self.writer
+    }
 }
