@@ -1,7 +1,20 @@
 [package]
-name = "stream"
+name = "streamdown"
 version = "0.1.0"
 edition = "2021"
+description = "Streaming markdown renderer for terminal output, optimized for LLM responses"
+license = "MIT"
+repository = "https://github.com/antinomyhq/streamdown"
+keywords = ["markdown", "terminal", "streaming", "llm", "cli"]
+categories = ["command-line-interface", "text-processing"]
+
+[lib]
+name = "streamdown"
+path = "src/lib.rs"
+
+[[bin]]
+name = "streamdown-demo"
+path = "src/main.rs"
 
 [dependencies]
 streamdown-parser = "0.1.3"
