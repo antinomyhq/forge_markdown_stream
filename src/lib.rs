@@ -1,24 +1,23 @@
 //! Streamdown - Streaming markdown renderer for terminal output.
 //!
 //! This crate provides a streaming markdown renderer optimized for LLM output.
-//! It renders markdown character-by-character with configurable delays,
-//! giving a smooth typewriter-like effect even when tokens arrive in bursts.
+//! It renders markdown with syntax highlighting, styled headings, tables, lists, and more.
 //!
 //! # Example
 //!
 //! ```no_run
 //! use streamdown::StreamdownRenderer;
+//! use std::io;
 //!
-//! #[tokio::main]
-//! async fn main() -> std::io::Result<()> {
-//!     let mut renderer = StreamdownRenderer::new(80);
+//! fn main() -> io::Result<()> {
+//!     let mut renderer = StreamdownRenderer::new(io::stdout(), 80);
 //!     
 //!     // Push tokens as they arrive from LLM
 //!     renderer.push("Hello ")?;
 //!     renderer.push("**world**!\n")?;
 //!     
-//!     // Wait for all output to be written
-//!     renderer.finish().await?;
+//!     // Finish rendering
+//!     renderer.finish()?;
 //!     Ok(())
 //! }
 //! ```
@@ -31,58 +30,41 @@ mod renderer;
 mod table;
 mod text;
 mod theme;
-mod writer;
 
-use std::io;
+use std::io::{self, Write};
 
 use streamdown_parser::Parser;
 
 use renderer::Renderer;
 pub use theme::{Style, Theme};
-pub use writer::StreamingWriter;
 
 /// Streaming markdown renderer for terminal output.
 ///
 /// Buffers incoming tokens and renders complete lines with syntax highlighting,
-/// styled headings, tables, lists, and more. Output is written character-by-character
-/// with small delays for a smooth streaming effect.
-pub struct StreamdownRenderer {
+/// styled headings, tables, lists, and more.
+///
+/// The renderer is generic over the writer type `W`, which must implement `Write`.
+pub struct StreamdownRenderer<W: Write> {
     parser: Parser,
-    renderer: Renderer<StreamingWriter>,
+    renderer: Renderer<W>,
     line_buffer: String,
 }
 
-impl StreamdownRenderer {
-    /// Create a new renderer with the given terminal width.
-    ///
-    /// Uses a default character delay of 3ms for smooth output.
-    pub fn new(width: usize) -> Self {
-        Self::with_delay(width, 3)
-    }
-
-    /// Create a new renderer with custom character delay in milliseconds.
-    pub fn with_delay(width: usize, delay_ms: u64) -> Self {
+impl<W: Write> StreamdownRenderer<W> {
+    /// Create a new renderer with the given writer and terminal width.
+    pub fn new(writer: W, width: usize) -> Self {
         Self {
             parser: Parser::new(),
-            renderer: Renderer::new(StreamingWriter::new(delay_ms), width),
+            renderer: Renderer::new(writer, width),
             line_buffer: String::new(),
         }
     }
 
     /// Create a new renderer with a custom theme.
-    pub fn with_theme(width: usize, theme: Theme) -> Self {
+    pub fn with_theme(writer: W, width: usize, theme: Theme) -> Self {
         Self {
             parser: Parser::new(),
-            renderer: Renderer::with_theme(StreamingWriter::new(3), width, theme),
-            line_buffer: String::new(),
-        }
-    }
-
-    /// Create a new renderer with custom theme and delay.
-    pub fn with_theme_and_delay(width: usize, theme: Theme, delay_ms: u64) -> Self {
-        Self {
-            parser: Parser::new(),
-            renderer: Renderer::with_theme(StreamingWriter::new(delay_ms), width, theme),
+            renderer: Renderer::with_theme(writer, width, theme),
             line_buffer: String::new(),
         }
     }
@@ -90,7 +72,6 @@ impl StreamdownRenderer {
     /// Push a token to the renderer.
     ///
     /// Tokens are buffered until a complete line is received, then rendered.
-    /// This method returns immediately - actual output happens in a background task.
     pub fn push(&mut self, token: &str) -> io::Result<()> {
         self.line_buffer.push_str(token);
 
@@ -104,11 +85,8 @@ impl StreamdownRenderer {
         Ok(())
     }
 
-    /// Finish rendering and wait for all output to be written.
-    ///
-    /// This flushes any remaining buffered content and waits for the
-    /// background writer task to complete all pending output.
-    pub async fn finish(mut self) -> io::Result<()> {
+    /// Finish rendering, flushing any remaining buffered content.
+    pub fn finish(mut self) -> io::Result<()> {
         if !self.line_buffer.is_empty() {
             for event in self.parser.parse_line(&self.line_buffer) {
                 self.renderer.render_event(&event)?;
@@ -117,7 +95,7 @@ impl StreamdownRenderer {
         for event in self.parser.finalize() {
             self.renderer.render_event(&event)?;
         }
-        self.renderer.into_writer().finish().await
+        Ok(())
     }
 }
 
