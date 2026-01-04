@@ -1,11 +1,14 @@
 //! Heading rendering with theme-based styling.
 
+use crate::inline::render_inline_content;
 use crate::text::simple_wrap;
 use crate::theme::Theme;
 
 /// Render a heading with appropriate styling.
 pub fn render_heading(level: u8, content: &str, width: usize, margin: &str, theme: &Theme) -> Vec<String> {
-    let lines = simple_wrap(content, width);
+    // First render inline elements (bold, italic, etc.) in the content
+    let rendered_content = render_inline_content(content, theme);
+    let lines = simple_wrap(&rendered_content, width);
     let mut result = Vec::new();
 
     for line in lines {
