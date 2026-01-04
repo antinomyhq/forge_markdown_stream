@@ -17,7 +17,7 @@
 //!     renderer.push("**world**!\n")?;
 //!     
 //!     // Finish rendering
-//!     renderer.finish()?;
+//!     let _ = renderer.finish()?;
 //!     Ok(())
 //! }
 //! ```
@@ -86,7 +86,8 @@ impl<W: Write> StreamdownRenderer<W> {
     }
 
     /// Finish rendering, flushing any remaining buffered content.
-    pub fn finish(mut self) -> io::Result<()> {
+    /// Returns the underlying writer.
+    pub fn finish(mut self) -> io::Result<W> {
         if !self.line_buffer.is_empty() {
             for event in self.parser.parse_line(&self.line_buffer) {
                 self.renderer.render_event(&event)?;
@@ -95,7 +96,7 @@ impl<W: Write> StreamdownRenderer<W> {
         for event in self.parser.finalize() {
             self.renderer.render_event(&event)?;
         }
-        Ok(())
+        Ok(self.renderer.into_writer())
     }
 }
 
