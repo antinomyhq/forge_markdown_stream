@@ -634,6 +634,7 @@ dependencies = [
  "colored",
  "indicatif",
  "insta",
+ "streamdown-core",
  "streamdown-parser",
  "strip-ansi-escapes",
  "syntect",

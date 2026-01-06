@@ -27,6 +27,7 @@ mod heading;
 mod inline;
 mod list;
 mod renderer;
+mod repair;
 mod table;
 mod text;
 mod theme;
@@ -36,6 +37,7 @@ use std::io::{self, Write};
 use streamdown_parser::Parser;
 
 use renderer::Renderer;
+use repair::repair_line;
 pub use theme::{Style, Theme};
 
 /// Streaming markdown renderer for terminal output.
@@ -77,9 +79,13 @@ impl<W: Write> StreamdownRenderer<W> {
 
         while let Some(pos) = self.line_buffer.find('\n') {
             let line = self.line_buffer[..pos].to_string();
-            for event in self.parser.parse_line(&line) {
-                self.renderer.render_event(&event)?;
+
+            for repaired in repair_line(&line, self.parser.state()) {
+                for event in self.parser.parse_line(&repaired) {
+                    self.renderer.render_event(&event)?;
+                }
             }
+
             self.line_buffer = self.line_buffer[pos + 1..].to_string();
         }
         Ok(())
@@ -89,8 +95,10 @@ impl<W: Write> StreamdownRenderer<W> {
     /// Returns the underlying writer.
     pub fn finish(mut self) -> io::Result<W> {
         if !self.line_buffer.is_empty() {
-            for event in self.parser.parse_line(&self.line_buffer) {
-                self.renderer.render_event(&event)?;
+            for repaired in repair_line(&self.line_buffer, self.parser.state()) {
+                for event in self.parser.parse_line(&repaired) {
+                    self.renderer.render_event(&event)?;
+                }
             }
         }
         for event in self.parser.finalize() {
