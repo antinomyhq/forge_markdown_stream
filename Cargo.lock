@@ -645,7 +645,7 @@ dependencies = [
 [[package]]
 name = "streamdown-ansi"
 version = "0.1.2"
-source = "git+https://github.com/laststylebender14/streamdown-rs.git?branch=fix%2Fallow-underscore-words#8cf11dab548276395d54c4db29696adcdbdfb33b"
+source = "git+https://github.com/fed-stew/streamdown-rs.git?branch=main#97989522e349820894dbae57ec234be72c138719"
 dependencies = [
  "crossterm",
  "regex",
@@ -655,7 +655,7 @@ dependencies = [
 [[package]]
 name = "streamdown-core"
 version = "0.1.2"
-source = "git+https://github.com/laststylebender14/streamdown-rs.git?branch=fix%2Fallow-underscore-words#8cf11dab548276395d54c4db29696adcdbdfb33b"
+source = "git+https://github.com/fed-stew/streamdown-rs.git?branch=main#97989522e349820894dbae57ec234be72c138719"
 dependencies = [
  "regex",
  "serde",
@@ -665,7 +665,7 @@ dependencies = [
 [[package]]
 name = "streamdown-parser"
 version = "0.1.2"
-source = "git+https://github.com/laststylebender14/streamdown-rs.git?branch=fix%2Fallow-underscore-words#8cf11dab548276395d54c4db29696adcdbdfb33b"
+source = "git+https://github.com/fed-stew/streamdown-rs.git?branch=main#97989522e349820894dbae57ec234be72c138719"
 dependencies = [
  "regex",
  "streamdown-ansi",
