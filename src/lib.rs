@@ -108,9 +108,3 @@ impl<W: Write> StreamdownRenderer<W> {
     }
 }
 
-/// Get the current terminal width, or a default of 80 columns.
-pub fn terminal_width() -> usize {
-    terminal_size::terminal_size()
-        .map(|(w, _)| w.0 as usize)
-        .unwrap_or(80)
-}

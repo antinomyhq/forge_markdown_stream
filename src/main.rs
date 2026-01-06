@@ -6,7 +6,7 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use indicatif::{ProgressBar, ProgressStyle};
-use streamdown::{terminal_width, StreamdownRenderer};
+use streamdown::StreamdownRenderer;
 
 /// A spinner that only shows during idle periods (no content for a while).
 struct Spinner {
@@ -153,7 +153,7 @@ fn main() -> io::Result<()> {
     let content = include_str!("data.md");
     let tokens: Vec<&str> = content.split_inclusive(" ").collect();
     let writer = CharWriter::new(1);
-    let mut renderer = StreamdownRenderer::new(writer, terminal_width());
+    let mut renderer = StreamdownRenderer::new(writer, 80);
 
     for token in &tokens {
         renderer.push(token)?;
