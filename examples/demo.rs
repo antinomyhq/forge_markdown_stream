@@ -116,14 +116,6 @@ impl CharWriter {
             handle: Some(handle),
         }
     }
-
-    fn finish(mut self) -> io::Result<()> {
-        let _ = self.sender.send(None);
-        if let Some(handle) = self.handle.take() {
-            let _ = handle.join();
-        }
-        Ok(())
-    }
 }
 
 impl Write for CharWriter {
@@ -151,7 +143,7 @@ impl Drop for CharWriter {
 
 fn main() -> io::Result<()> {
     let content = include_str!("../src/data.md");
-    let tokens: Vec<&str> = content.split_inclusive(" ").collect();
+    let tokens: Vec<&str> = content.split("<separator>").collect();
     let writer = CharWriter::new(1);
     let mut renderer = StreamdownRenderer::new(writer, 80);
 
