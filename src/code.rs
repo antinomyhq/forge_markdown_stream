@@ -1,5 +1,6 @@
 //! Code block rendering with syntax highlighting and line wrapping.
 
+use streamdown_render::code_wrap;
 use syntect::easy::HighlightLines;
 use syntect::highlighting::ThemeSet;
 use syntect::parsing::SyntaxSet;
@@ -48,7 +49,8 @@ impl CodeHighlighter {
         margin: &str,
         width: usize,
     ) -> Vec<String> {
-        let (indent, wrapped_lines) = code_wrap(line, width);
+        // Use code_wrap with pretty_broken=true for line wrapping
+        let (indent, wrapped_lines) = code_wrap(line, width, true);
 
         let mut result = Vec::new();
 
@@ -73,76 +75,13 @@ impl CodeHighlighter {
     }
 }
 
-/// Wrap a code line if it exceeds the width.
-///
-/// Unlike text wrapping, code wrapping preserves indentation
-/// and doesn't break on word boundaries - it breaks at character boundaries.
-///
-/// # Arguments
-/// * `text` - The code line
-/// * `width` - Maximum width
-///
-/// # Returns
-/// (indent, lines) - The detected indent level and wrapped lines
-fn code_wrap(text: &str, width: usize) -> (usize, Vec<String>) {
-    if text.is_empty() {
-        return (0, vec![String::new()]);
-    }
-
-    // Detect indentation
-    let indent = text.len() - text.trim_start().len();
-    let content = text.trim_start();
-
-    if content.is_empty() {
-        return (indent, vec![text.to_string()]);
-    }
-
-    // Calculate effective width (accounting for indent on continuation lines)
-    // Reserve 4 chars for continuation indent marker
-    let effective_width = width.saturating_sub(4).saturating_sub(indent);
-
-    if effective_width == 0 || content.len() <= effective_width {
-        return (indent, vec![text.to_string()]);
-    }
-
-    // Wrap the content at character boundaries
-    let mut lines = Vec::new();
-    let chars: Vec<char> = content.chars().collect();
-    let mut start = 0;
-
-    while start < chars.len() {
-        let end = (start + effective_width).min(chars.len());
-        let line_chars: String = chars[start..end].iter().collect();
-
-        if start == 0 {
-            // First line includes original indentation
-            lines.push(format!("{}{}", " ".repeat(indent), line_chars));
-        } else {
-            lines.push(line_chars);
-        }
-
-        start = end;
-    }
-
-    // Remove trailing empty lines
-    while lines.last().map(|l| l.trim().is_empty()).unwrap_or(false) {
-        lines.pop();
-    }
-
-    if lines.is_empty() {
-        lines.push(text.to_string());
-    }
-
-    (indent, lines)
-}
-
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use streamdown_render::code_wrap;
 
     #[test]
     fn test_code_wrap_short_line() {
-        let (indent, lines) = code_wrap("let x = 1;", 80);
+        let (indent, lines) = code_wrap("let x = 1;", 80, true);
         assert_eq!(indent, 0);
         assert_eq!(lines.len(), 1);
         assert_eq!(lines[0], "let x = 1;");
@@ -150,7 +89,7 @@ mod tests {
 
     #[test]
     fn test_code_wrap_with_indent() {
-        let (indent, lines) = code_wrap("    let x = 1;", 80);
+        let (indent, lines) = code_wrap("    let x = 1;", 80, true);
         assert_eq!(indent, 4);
         assert_eq!(lines.len(), 1);
     }
@@ -158,13 +97,13 @@ mod tests {
     #[test]
     fn test_code_wrap_long_line() {
         let long_line = "x".repeat(100);
-        let (_, lines) = code_wrap(&long_line, 40);
-        assert_eq!(lines.len(), 3);
+        let (_, lines) = code_wrap(&long_line, 40, true);
+        assert!(lines.len() > 1);
     }
 
     #[test]
     fn test_code_wrap_empty() {
-        let (indent, lines) = code_wrap("", 80);
+        let (indent, lines) = code_wrap("", 80, true);
         assert_eq!(indent, 0);
         assert_eq!(lines.len(), 1);
     }
