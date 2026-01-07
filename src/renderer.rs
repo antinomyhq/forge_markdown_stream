@@ -2,7 +2,7 @@
 
 use std::io::{self, Write};
 
-use streamdown_parser::{decode_html_entities, ParseEvent};
+use streamdown_parser::ParseEvent;
 
 use crate::code::CodeHighlighter;
 use crate::heading::render_heading;
@@ -10,6 +10,7 @@ use crate::inline::{render_inline_content, render_inline_elements};
 use crate::list::{render_list_item, ListState};
 use crate::table::render_table;
 use crate::theme::Theme;
+use crate::style::InlineStyler;
 use streamdown_render::text::text_wrap;
 
 /// Main renderer for markdown events.
@@ -130,52 +131,45 @@ impl<W: Write> Renderer<W> {
         match event {
             // === Inline elements ===
             ParseEvent::Text(text) => {
-                let decoded = decode_html_entities(text);
-                self.write(&decoded)?;
-                self.column += decoded.chars().count();
+                let styled = self.theme.text(text);
+                self.write(&styled)?;
+                self.column += styled.chars().count();
             }
 
             ParseEvent::InlineCode(code) => {
-                self.write(&self.theme.code.apply(code).to_string())?;
+                self.write(&self.theme.code(code))?;
             }
 
             ParseEvent::Bold(text) => {
-                self.write(&self.theme.bold.apply(text).to_string())?;
+                self.write(&self.theme.bold(text))?;
             }
 
             ParseEvent::Italic(text) => {
-                self.write(&self.theme.italic.apply(text).to_string())?;
+                self.write(&self.theme.italic(text))?;
             }
 
             ParseEvent::BoldItalic(text) => {
-                let styled = self.theme.bold.apply(text);
-                self.write(&self.theme.italic.apply(&styled.to_string()).to_string())?;
+                self.write(&self.theme.bold_italic(text))?;
             }
 
             ParseEvent::Underline(text) => {
-                self.write(&format!("\x1b[4m{}\x1b[24m", text))?;
+                self.write(&self.theme.underline(text))?;
             }
 
             ParseEvent::Strikeout(text) => {
-                self.write(&self.theme.strikethrough.apply(text).to_string())?;
+                self.write(&self.theme.strikethrough(text))?;
             }
 
             ParseEvent::Link { text, url } => {
-                self.write("\x1b]8;;")?;
-                self.write(url)?;
-                self.write("\x1b\\")?;
-                self.write(&self.theme.link.apply(text).to_string())?;
-                self.write("\x1b]8;;\x1b\\")?;
-                self.write(" ")?;
-                self.write(&self.theme.link_url.apply(&format!("({})", url)).to_string())?;
+                self.write(&self.theme.link(text, url))?;
             }
 
-            ParseEvent::Image { alt, url: _ } => {
-                self.write(&format!("[🖼 {}]", alt))?;
+            ParseEvent::Image { alt, url } => {
+                self.write(&self.theme.image(alt, url))?;
             }
 
             ParseEvent::Footnote(superscript) => {
-                self.write(superscript)?;
+                self.write(&self.theme.footnote(superscript))?;
             }
 
             ParseEvent::Prompt(prompt) => {
