@@ -24,7 +24,7 @@ impl Default for CodeHighlighter {
 
 impl CodeHighlighter {
     /// Highlight a single line of code.
-    pub fn highlight_line(&self, line: &str, language: Option<&str>) -> String {
+    fn highlight_line(&self, line: &str, language: Option<&str>) -> String {
         let syntax = language
             .and_then(|lang| self.syntax_set.find_syntax_by_token(lang))
             .unwrap_or_else(|| self.syntax_set.find_syntax_plain_text());
@@ -84,7 +84,7 @@ impl CodeHighlighter {
 ///
 /// # Returns
 /// (indent, lines) - The detected indent level and wrapped lines
-pub fn code_wrap(text: &str, width: usize) -> (usize, Vec<String>) {
+fn code_wrap(text: &str, width: usize) -> (usize, Vec<String>) {
     if text.is_empty() {
         return (0, vec![String::new()]);
     }
@@ -159,7 +159,7 @@ mod tests {
     fn test_code_wrap_long_line() {
         let long_line = "x".repeat(100);
         let (_, lines) = code_wrap(&long_line, 40);
-        assert!(lines.len() > 1);
+        assert_eq!(lines.len(), 3);
     }
 
     #[test]
