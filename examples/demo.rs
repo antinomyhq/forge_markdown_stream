@@ -6,7 +6,7 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use indicatif::{ProgressBar, ProgressStyle};
-use streamdown::StreamdownRenderer;
+use forge_markdown_stream::StreamdownRenderer;
 
 /// A spinner that only shows during idle periods (no content for a while).
 struct Spinner {

@@ -1,15 +1,15 @@
 [package]
-name = "streamdown"
+name = "forge_markdown_stream"
 version = "0.1.0"
 edition = "2021"
-description = "Streaming markdown renderer for terminal output, optimized for LLM responses"
+description = "Forge Markdown Stream - Streaming markdown renderer for terminal output, optimized for LLM responses"
 license = "MIT"
-repository = "https://github.com/antinomyhq/streamdown"
+repository = "https://github.com/antinomyhq/forge_markdown_stream"
 keywords = ["markdown", "terminal", "streaming", "llm", "cli"]
 categories = ["command-line-interface", "text-processing"]
 
 [lib]
-name = "streamdown"
+name = "forge_markdown_stream"
 path = "src/lib.rs"
 
 [dependencies]

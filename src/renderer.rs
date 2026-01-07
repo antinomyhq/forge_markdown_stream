@@ -12,7 +12,7 @@ use crate::table::render_table;
 use crate::text::text_wrap;
 use crate::theme::Theme;
 
-/// Main renderer for streamdown events.
+/// Main renderer for markdown events.
 pub struct Renderer<W: Write> {
     writer: W,
     width: usize,

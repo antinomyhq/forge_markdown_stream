@@ -1,4 +1,4 @@
-//! Streamdown - Streaming markdown renderer for terminal output.
+//! Forge Markdown Stream - Streaming markdown renderer for terminal output.
 //!
 //! This crate provides a streaming markdown renderer optimized for LLM output.
 //! It renders markdown with syntax highlighting, styled headings, tables, lists, and more.
@@ -6,7 +6,7 @@
 //! # Example
 //!
 //! ```no_run
-//! use streamdown::StreamdownRenderer;
+//! use forge_markdown_stream::StreamdownRenderer;
 //! use std::io;
 //!
 //! fn main() -> io::Result<()> {

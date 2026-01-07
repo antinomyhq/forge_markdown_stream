@@ -188,6 +188,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
+name = "forge_markdown_stream"
+version = "0.1.0"
+dependencies = [
+ "colored",
+ "indicatif",
+ "insta",
+ "streamdown-core",
+ "streamdown-parser",
+ "strip-ansi-escapes",
+ "syntect",
+ "unicode-width",
+]
+
+[[package]]
 name = "getrandom"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -626,20 +640,6 @@ name = "smallvec"
 version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
-
-[[package]]
-name = "streamdown"
-version = "0.1.0"
-dependencies = [
- "colored",
- "indicatif",
- "insta",
- "streamdown-core",
- "streamdown-parser",
- "strip-ansi-escapes",
- "syntect",
- "unicode-width",
-]
 
 [[package]]
 name = "streamdown-ansi"
