@@ -188,3 +188,192 @@ pub fn text_wrap(
 
     WrappedText { lines }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ==================== visible_length tests ====================
+
+    #[test]
+    fn test_visible_length_plain_text() {
+        assert_eq!(visible_length("hello"), 5);
+        assert_eq!(visible_length("hello world"), 11);
+        assert_eq!(visible_length(""), 0);
+    }
+
+    #[test]
+    fn test_visible_length_with_ansi() {
+        // Bold text
+        assert_eq!(visible_length("\x1b[1mhello\x1b[0m"), 5);
+        // Colored text
+        assert_eq!(visible_length("\x1b[31mred\x1b[0m"), 3);
+        // Multiple codes
+        assert_eq!(visible_length("\x1b[1m\x1b[31mbold red\x1b[0m"), 8);
+    }
+
+    #[test]
+    fn test_visible_length_unicode() {
+        // Wide characters (CJK)
+        assert_eq!(visible_length("你好"), 4); // Each Chinese char is 2 wide
+        // Emoji
+        assert_eq!(visible_length("👋"), 2); // Emoji is typically 2 wide
+    }
+
+    #[test]
+    fn test_visible_length_mixed_ansi_unicode() {
+        assert_eq!(visible_length("\x1b[1m你好\x1b[0m"), 4);
+    }
+
+    // ==================== split_text tests ====================
+
+    #[test]
+    fn test_split_text_simple() {
+        assert_eq!(split_text("hello world"), vec!["hello", "world"]);
+    }
+
+    #[test]
+    fn test_split_text_multiple_spaces() {
+        assert_eq!(split_text("hello   world"), vec!["hello", "world"]);
+    }
+
+    #[test]
+    fn test_split_text_empty() {
+        let result: Vec<String> = split_text("");
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_split_text_single_word() {
+        assert_eq!(split_text("hello"), vec!["hello"]);
+    }
+
+    #[test]
+    fn test_split_text_preserves_ansi() {
+        let result = split_text("\x1b[1mhello\x1b[0m world");
+        assert_eq!(result.len(), 2);
+        assert!(result[0].contains("\x1b[1m"));
+        assert!(result[0].contains("hello"));
+        assert_eq!(result[1], "world");
+    }
+
+    #[test]
+    fn test_split_text_ansi_spans_word() {
+        let result = split_text("\x1b[31mred text\x1b[0m");
+        // ANSI code attaches to first word, second word is plain
+        assert_eq!(result.len(), 2);
+        assert!(result[0].starts_with("\x1b[31m"));
+    }
+
+    // ==================== simple_wrap tests ====================
+
+    #[test]
+    fn test_simple_wrap_no_wrap_needed() {
+        let result = simple_wrap("hello world", 20);
+        assert_eq!(result, vec!["hello world"]);
+    }
+
+    #[test]
+    fn test_simple_wrap_single_line() {
+        let result = simple_wrap("short", 10);
+        assert_eq!(result, vec!["short"]);
+    }
+
+    #[test]
+    fn test_simple_wrap_wraps_at_width() {
+        let result = simple_wrap("hello world test", 11);
+        assert_eq!(result, vec!["hello world", "test"]);
+    }
+
+    #[test]
+    fn test_simple_wrap_multiple_lines() {
+        let result = simple_wrap("one two three four five", 10);
+        assert_eq!(result, vec!["one two", "three four", "five"]);
+    }
+
+    #[test]
+    fn test_simple_wrap_empty() {
+        let result = simple_wrap("", 10);
+        assert_eq!(result, vec![""]);
+    }
+
+    #[test]
+    fn test_simple_wrap_zero_width() {
+        let result = simple_wrap("hello", 0);
+        assert_eq!(result, vec!["hello"]);
+    }
+
+    #[test]
+    fn test_simple_wrap_long_word() {
+        // Word longer than width stays on its own line
+        let result = simple_wrap("superlongword short", 10);
+        assert_eq!(result, vec!["superlongword", "short"]);
+    }
+
+    // ==================== text_wrap tests ====================
+
+    #[test]
+    fn test_text_wrap_with_prefix() {
+        let result = text_wrap("hello world", 20, "  ", "  ");
+        assert_eq!(result.lines, vec!["  hello world"]);
+    }
+
+    #[test]
+    fn test_text_wrap_different_prefixes() {
+        let result = text_wrap("one two three four", 12, "• ", "  ");
+        assert_eq!(result.lines.len(), 2);
+        assert!(result.lines[0].starts_with("• "));
+        assert!(result.lines[1].starts_with("  "));
+    }
+
+    #[test]
+    fn test_text_wrap_empty() {
+        let result = text_wrap("", 20, "  ", "  ");
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_text_wrap_zero_width() {
+        let result = text_wrap("hello", 0, "  ", "  ");
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_text_wrap_respects_prefix_width() {
+        // Width 15, prefix ">>> " is 4 chars, so 11 chars available
+        let result = text_wrap("hello world test", 15, ">>> ", "    ");
+        assert_eq!(result.lines[0], ">>> hello world");
+        assert_eq!(result.lines[1], "    test");
+    }
+
+    #[test]
+    fn test_text_wrap_with_ansi() {
+        let result = text_wrap("\x1b[1mbold\x1b[0m text", 20, "  ", "  ");
+        assert_eq!(result.lines.len(), 1);
+        assert!(result.lines[0].contains("\x1b[1m"));
+    }
+
+    #[test]
+    fn test_text_wrap_preserves_ansi_across_lines() {
+        let result = text_wrap("\x1b[1mone two three\x1b[0m", 10, "", "");
+        assert!(result.lines.len() >= 2);
+    }
+
+    // ==================== WrappedText tests ====================
+
+    #[test]
+    fn test_wrapped_text_empty() {
+        let wrapped = WrappedText::empty();
+        assert!(wrapped.is_empty());
+        assert!(wrapped.lines.is_empty());
+    }
+
+    #[test]
+    fn test_wrapped_text_not_empty() {
+        let wrapped = WrappedText {
+            lines: vec!["hello".to_string()],
+        };
+        assert!(!wrapped.is_empty());
+    }
+}
