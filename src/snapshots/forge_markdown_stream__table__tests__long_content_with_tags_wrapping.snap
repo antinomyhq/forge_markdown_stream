@@ -5,7 +5,7 @@ expression: "render_with_width(vec![vec![\"Title\", \"Content\"],\nvec![\"Articl
   ┌───────┬────────────────────────────────────────┐
   │ Title │ Content                                │
   ├───────┼────────────────────────────────────────┤
-  │ Artic │ This has <b>bold</b> and <i>italic</i> │
-  │ le    │  and <code>code</code> in a long sente │
-  │       │ nce that wraps                         │
+  │ Artic │ This has <b>bold</b> and               │
+  │ le    │ <i>italic</i> and <code>code</code>    │
+  │       │ in a long sentence that wraps          │
   └───────┴────────────────────────────────────────┘
