@@ -34,10 +34,10 @@ mod theme;
 
 use std::io::{self, Write};
 
-use streamdown_parser::Parser;
+pub use streamdown_parser::Parser;
 
-use renderer::Renderer;
-use repair::repair_line;
+pub use renderer::Renderer;
+pub use repair::repair_line;
 pub use theme::{Style, Theme};
 
 /// Streaming markdown renderer for terminal output.
