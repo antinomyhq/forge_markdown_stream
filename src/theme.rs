@@ -5,7 +5,7 @@
 use colored::{Color, ColoredString, Colorize};
 use streamdown_parser::decode_html_entities;
 
-use crate::style::{HeadingStyler, InlineStyler, ListStyler};
+use crate::style::{HeadingStyler, InlineStyler, ListStyler, TableStyler};
 
 /// Style configuration for a single element.
 #[derive(Clone, Debug)]
@@ -258,6 +258,16 @@ impl ListStyler for Theme {
     }
 }
 
+impl TableStyler for Theme {
+    fn border(&self, text: &str) -> String {
+        self.table_border.apply(text).to_string()
+    }
+
+    fn header(&self, text: &str) -> String {
+        self.table_header.apply(text).to_string()
+    }
+}
+
 impl Theme {
     /// Dark theme (default).
     pub fn dark() -> Self {
@@ -451,5 +461,17 @@ impl ListStyler for TagStyler {
 
     fn number(&self, text: &str) -> String {
         format!("<num>{}</num>", text)
+    }
+}
+
+
+#[cfg(test)]
+impl TableStyler for TagStyler {
+    fn border(&self, text: &str) -> String {
+        Theme::default().border(text)
+    }
+
+    fn header(&self, text: &str) -> String {
+        Theme::default().header(text)
     }
 }

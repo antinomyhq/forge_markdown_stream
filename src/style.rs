@@ -34,3 +34,11 @@ pub trait ListStyler {
     fn bullet_plus_expand(&self, text: &str) -> String;
     fn number(&self, text: &str) -> String;
 }
+
+
+
+/// Trait for styling table elements.
+pub trait TableStyler {
+    fn border(&self, text: &str) -> String;
+    fn header(&self, text: &str) -> String;
+}
