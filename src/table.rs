@@ -40,8 +40,7 @@ pub fn render_table<S: TableStyler + InlineStyler>(
     let total: usize = w.iter().sum();
     if overhead + total > max_width && max_width > overhead {
         let avail = max_width - overhead;
-        w.iter_mut()
-            .for_each(|x| *x = (*x * avail / total).max(5));
+        w.iter_mut().for_each(|x| *x = (*x * avail / total).max(5));
     }
 
     // Helper to create horizontal lines
@@ -99,7 +98,9 @@ pub fn render_table<S: TableStyler + InlineStyler>(
     out
 }
 
-/// Wrap text by characters, preserving ANSI codes across lines.
+/// Wrap text by words, preserving ANSI codes across lines.
+/// Breaks at spaces, and tries to keep content together when possible.
+/// Handles both CSI sequences (\x1b[...m) and OSC sequences (\x1b]...\x1b\\).
 fn wrap(text: &str, width: usize) -> Vec<String> {
     if width == 0 || visible_length(text) <= width {
         return vec![text.to_string()];
@@ -107,32 +108,151 @@ fn wrap(text: &str, width: usize) -> Vec<String> {
 
     let mut lines = Vec::new();
     let mut line = String::new();
-    let mut w = 0;
+    let mut line_width = 0;
+    let mut word = String::new();
+    let mut word_width = 0;
     let mut esc = String::new();
-    let mut style: Option<String> = None;
+    let mut in_osc = false;
+    let mut active_style: Option<String> = None;
 
-    for c in text.chars() {
-        if !esc.is_empty() || c == '\x1b' {
+    let chars: Vec<char> = text.chars().collect();
+    let mut i = 0;
+
+    while i < chars.len() {
+        let c = chars[i];
+
+        // Handle escape sequences
+        if c == '\x1b' {
             esc.push(c);
-            if c == 'm' {
-                style = if esc == "\x1b[0m" {
-                    None
+            i += 1;
+            
+            // Check what type of sequence
+            if i < chars.len() {
+                let next = chars[i];
+                esc.push(next);
+                i += 1;
+                
+                if next == '[' {
+                    // CSI sequence - read until 'm' or other terminator
+                    while i < chars.len() {
+                        let sc = chars[i];
+                        esc.push(sc);
+                        i += 1;
+                        if sc == 'm' || sc == 'K' || sc == 'H' || sc == 'J' {
+                            break;
+                        }
+                    }
+                    // Track active style for CSI color/style sequences
+                    if esc.ends_with('m') {
+                        active_style = if esc == "\x1b[0m" {
+                            None
+                        } else {
+                            Some(esc.clone())
+                        };
+                    }
+                    word.push_str(&esc);
+                    esc.clear();
+                } else if next == ']' {
+                    // OSC sequence - read until \x1b\\
+                    in_osc = true;
+                    while i < chars.len() {
+                        let sc = chars[i];
+                        esc.push(sc);
+                        i += 1;
+                        if sc == '\\' && esc.len() >= 2 {
+                            let prev = esc.chars().rev().nth(1);
+                            if prev == Some('\x1b') {
+                                in_osc = false;
+                                break;
+                            }
+                        }
+                        // Also check for BEL terminator
+                        if sc == '\x07' {
+                            in_osc = false;
+                            break;
+                        }
+                    }
+                    word.push_str(&esc);
+                    esc.clear();
+                } else if next == '\\' && in_osc {
+                    // End of OSC sequence
+                    word.push_str(&esc);
+                    esc.clear();
+                    in_osc = false;
                 } else {
-                    Some(esc.clone())
-                };
-                line.push_str(&esc);
-                esc.clear();
+                    // Unknown sequence, just add it
+                    word.push_str(&esc);
+                    esc.clear();
+                }
             }
+            continue;
+        }
+
+        let cw = c.width().unwrap_or(0);
+
+        // Check if this is a word boundary (space)
+        if c.is_whitespace() {
+            // Try to add current word + space to line
+            if line_width + word_width + cw > width && line_width > 0 {
+                // Doesn't fit, start new line
+                if !line.is_empty() {
+                    line.push_str("\x1b[0m");
+                    lines.push(line);
+                }
+                line = active_style.clone().unwrap_or_default();
+                line.push_str(&word);
+                line.push(c);
+                line_width = word_width + cw;
+            } else {
+                // Fits on current line
+                line.push_str(&word);
+                line.push(c);
+                line_width += word_width + cw;
+            }
+            word.clear();
+            word_width = 0;
         } else {
-            let cw = c.width().unwrap_or(0);
-            if w + cw > width && w > 0 {
+            // Add character to current word
+            word.push(c);
+            word_width += cw;
+
+            // If word itself exceeds width, break it by character
+            if word_width > width {
+                if !line.is_empty() {
+                    line.push_str("\x1b[0m");
+                    lines.push(line);
+                    line = active_style.clone().unwrap_or_default();
+                    line_width = 0;
+                }
+                // Push the long word, breaking at width while preserving ANSI codes
+                while visible_length(&word) > width {
+                    let (chunk, rem) = split_word_at_width(&word, width);
+                    if !chunk.is_empty() {
+                        line.push_str(&chunk);
+                        line.push_str("\x1b[0m");
+                        lines.push(line);
+                        line = active_style.clone().unwrap_or_default();
+                        line_width = 0;
+                    }
+                    word = rem;
+                }
+                word_width = visible_length(&word);
+            }
+        }
+        i += 1;
+    }
+
+    // Add remaining word to line
+    if !word.is_empty() {
+        if line_width + word_width > width && line_width > 0 {
+            if !line.is_empty() {
                 line.push_str("\x1b[0m");
                 lines.push(line);
-                line = style.clone().unwrap_or_default();
-                w = 0;
             }
-            line.push(c);
-            w += cw;
+            line = active_style.clone().unwrap_or_default();
+            line.push_str(&word);
+        } else {
+            line.push_str(&word);
         }
     }
 
@@ -145,6 +265,87 @@ fn wrap(text: &str, width: usize) -> Vec<String> {
     } else {
         lines
     }
+}
+
+/// Split a word at a given visible width, preserving ANSI escape sequences.
+fn split_word_at_width(word: &str, width: usize) -> (String, String) {
+    let mut chunk = String::new();
+    let mut chunk_w = 0;
+    let mut remaining = String::new();
+    let mut in_chunk = true;
+    let mut esc = String::new();
+
+    let chars: Vec<char> = word.chars().collect();
+    let mut i = 0;
+
+    while i < chars.len() {
+        let c = chars[i];
+
+        // Handle escape sequences
+        if c == '\x1b' {
+            esc.push(c);
+            i += 1;
+            
+            if i < chars.len() {
+                let next = chars[i];
+                esc.push(next);
+                i += 1;
+                
+                if next == '[' {
+                    // CSI sequence
+                    while i < chars.len() {
+                        let sc = chars[i];
+                        esc.push(sc);
+                        i += 1;
+                        if sc == 'm' || sc == 'K' || sc == 'H' || sc == 'J' {
+                            break;
+                        }
+                    }
+                } else if next == ']' {
+                    // OSC sequence - read until \x1b\\ or BEL
+                    while i < chars.len() {
+                        let sc = chars[i];
+                        esc.push(sc);
+                        i += 1;
+                        if sc == '\\' && esc.len() >= 2 {
+                            let prev_idx = esc.len() - 2;
+                            if esc.chars().nth(prev_idx) == Some('\x1b') {
+                                break;
+                            }
+                        }
+                        if sc == '\x07' {
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Add escape sequence to appropriate part
+            if in_chunk {
+                chunk.push_str(&esc);
+            } else {
+                remaining.push_str(&esc);
+            }
+            esc.clear();
+            continue;
+        }
+
+        if in_chunk {
+            let cw = c.width().unwrap_or(0);
+            if chunk_w + cw <= width {
+                chunk.push(c);
+                chunk_w += cw;
+            } else {
+                remaining.push(c);
+                in_chunk = false;
+            }
+        } else {
+            remaining.push(c);
+        }
+        i += 1;
+    }
+
+    (chunk, remaining)
 }
 
 #[cfg(test)]
@@ -186,18 +387,12 @@ mod tests {
 
     #[test]
     fn test_simple_table() {
-        insta::assert_snapshot!(render(vec![
-            vec!["Name", "Age"],
-            vec!["Alice", "30"],
-        ]));
+        insta::assert_snapshot!(render(vec![vec!["Name", "Age"], vec!["Alice", "30"],]));
     }
 
     #[test]
     fn test_single_cell() {
-        insta::assert_snapshot!(render(vec![
-            vec!["Header"],
-            vec!["Value"],
-        ]));
+        insta::assert_snapshot!(render(vec![vec!["Header"], vec!["Value"],]));
     }
 
     #[test]
@@ -254,41 +449,39 @@ mod tests {
 
     #[test]
     fn test_custom_margin() {
-        insta::assert_snapshot!(render_with_margin(vec![
-            vec!["A", "B"],
-            vec!["1", "2"],
-        ], "    "));
+        insta::assert_snapshot!(render_with_margin(
+            vec![vec!["A", "B"], vec!["1", "2"],],
+            "    "
+        ));
     }
 
     #[test]
     fn test_no_margin() {
-        insta::assert_snapshot!(render_with_margin(vec![
-            vec!["A", "B"],
-            vec!["1", "2"],
-        ], ""));
+        insta::assert_snapshot!(render_with_margin(
+            vec![vec!["A", "B"], vec!["1", "2"],],
+            ""
+        ));
     }
 
     #[test]
     fn test_narrow_width_shrinks_columns() {
-        insta::assert_snapshot!(render_with_width(vec![
-            vec!["Long Header One", "Long Header Two"],
-            vec!["value1", "value2"],
-        ], 40));
+        insta::assert_snapshot!(render_with_width(
+            vec![
+                vec!["Long Header One", "Long Header Two"],
+                vec!["value1", "value2"],
+            ],
+            40
+        ));
     }
 
     #[test]
     fn test_unicode_content() {
-        insta::assert_snapshot!(render(vec![
-            vec!["名前", "年齢"],
-            vec!["田中", "25"],
-        ]));
+        insta::assert_snapshot!(render(vec![vec!["名前", "年齢"], vec!["田中", "25"],]));
     }
 
     #[test]
     fn test_single_row_header_only() {
-        insta::assert_snapshot!(render(vec![
-            vec!["Only", "Headers"],
-        ]));
+        insta::assert_snapshot!(render(vec![vec!["Only", "Headers"],]));
     }
 
     #[test]
@@ -319,7 +512,11 @@ mod tests {
     #[test]
     fn test_wrap_splits_text() {
         let result = wrap("hello world", 5);
-        assert_eq!(result.len(), 3);
+        // Word-based wrapping: "hello " and "world" = 2 lines
+        assert_eq!(result.len(), 2);
+        let strip = |s: &str| String::from_utf8(strip_ansi_escapes::strip(s)).unwrap();
+        assert_eq!(strip(&result[0]), "hello ");
+        assert_eq!(strip(&result[1]), "world");
     }
 
     #[test]
@@ -353,19 +550,22 @@ mod tests {
 
     #[test]
     fn test_multiline_content_wrapping() {
-        insta::assert_snapshot!(render_with_width(vec![
-            vec!["Name", "Bio"],
-            vec!["Alice", "Software engineer with 10 years of experience"],
-            vec!["Bob", "Data scientist specializing in machine learning"],
-        ], 50));
+        insta::assert_snapshot!(render_with_width(
+            vec![
+                vec!["Name", "Bio"],
+                vec!["Alice", "Software engineer with 10 years of experience"],
+                vec!["Bob", "Data scientist specializing in machine learning"],
+            ],
+            50
+        ));
     }
 
     #[test]
     fn test_very_narrow_width() {
-        insta::assert_snapshot!(render_with_width(vec![
-            vec!["Column A", "Column B"],
-            vec!["value1", "value2"],
-        ], 25));
+        insta::assert_snapshot!(render_with_width(
+            vec![vec!["Column A", "Column B"], vec!["value1", "value2"],],
+            25
+        ));
     }
 
     #[test]
@@ -393,17 +593,14 @@ mod tests {
         // Rows with different number of cells
         insta::assert_snapshot!(render(vec![
             vec!["A", "B", "C"],
-            vec!["1", "2"],  // Missing third cell
+            vec!["1", "2"], // Missing third cell
             vec!["x"],      // Only one cell
         ]));
     }
 
     #[test]
     fn test_all_empty_cells() {
-        insta::assert_snapshot!(render(vec![
-            vec!["", ""],
-            vec!["", ""],
-        ]));
+        insta::assert_snapshot!(render(vec![vec!["", ""], vec!["", ""],]));
     }
 
     #[test]
@@ -509,10 +706,16 @@ mod tests {
 
     #[test]
     fn test_long_content_with_tags_wrapping() {
-        insta::assert_snapshot!(render_with_width(vec![
-            vec!["Title", "Content"],
-            vec!["Article", "This has **bold** and *italic* and `code` in a long sentence that wraps"],
-        ], 50));
+        insta::assert_snapshot!(render_with_width(
+            vec![
+                vec!["Title", "Content"],
+                vec![
+                    "Article",
+                    "This has **bold** and *italic* and `code` in a long sentence that wraps"
+                ],
+            ],
+            50
+        ));
     }
 
     #[test]
@@ -521,6 +724,43 @@ mod tests {
             vec!["言語", "説明"],
             vec!["**日本語**", "*Japanese*"],
             vec!["`中文`", "Chinese"],
+        ]));
+    }
+
+    #[test]
+    fn test_real_world_table_with_all_formatting() {
+        insta::assert_snapshot!(render(vec![
+            vec!["Feature", "Status", "Description", "Link"],
+            vec![
+                "**Authentication**",
+                "✅ `completed`",
+                "Implements *JWT-based* authentication with ~~basic~~ **OAuth2** support",
+                "[Docs](https://example.com)",
+            ],
+            vec![
+                "**Database Layer**",
+                "🚧 `in-progress`",
+                "Uses `PostgreSQL` with **Diesel ORM** for *type-safe* queries",
+                "[GitHub](https://github.com)",
+            ],
+            vec![
+                "**API Gateway**",
+                "⏳ `planned`",
+                "RESTful API with `async/await` and ~~synchronous~~ **asynchronous** handlers",
+                "[Spec](https://api.example.com)",
+            ],
+            vec![
+                "**Testing**",
+                "✅ `completed`",
+                "Includes *unit tests*, **integration tests**, and `snapshot testing`",
+                "[Coverage](https://coverage.io)",
+            ],
+            vec![
+                "**Deployment**",
+                "🚧 `in-progress`",
+                "Docker containerization with `K8s` orchestration and **CI/CD** pipeline",
+                "[Deploy](https://deploy.com)",
+            ],
         ]));
     }
 }

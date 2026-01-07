@@ -4,20 +4,50 @@ use unicode_width::UnicodeWidthChar;
 
 /// Calculate visible length of a string (excluding ANSI escape codes).
 /// Uses Unicode width to properly handle wide characters like emojis.
+/// Handles both CSI sequences (\x1b[...m) and OSC sequences (\x1b]...\x1b\\).
 pub fn visible_length(s: &str) -> usize {
     let mut len = 0;
-    let mut in_escape = false;
+    let mut in_csi = false; // CSI sequence: \x1b[...m
+    let mut in_osc = false; // OSC sequence: \x1b]...\x1b\\
+    let mut prev_was_esc = false;
 
     for c in s.chars() {
-        if in_escape {
-            if c == 'm' || c == 'K' || c == 'H' || c == 'J' || c == '\\' {
-                in_escape = false;
+        if prev_was_esc {
+            prev_was_esc = false;
+            if c == '[' {
+                in_csi = true;
+                continue;
+            } else if c == ']' {
+                in_osc = true;
+                continue;
+            } else if c == '\\' && in_osc {
+                // End of OSC sequence
+                in_osc = false;
+                continue;
             }
-        } else if c == '\x1b' {
-            in_escape = true;
-        } else {
+            // Not a recognized sequence, count the escape and this char
             len += c.width().unwrap_or(0);
+            continue;
         }
+
+        if c == '\x1b' {
+            prev_was_esc = true;
+            continue;
+        }
+
+        if in_csi {
+            if c == 'm' || c == 'K' || c == 'H' || c == 'J' {
+                in_csi = false;
+            }
+            continue;
+        }
+
+        if in_osc {
+            // Skip all characters inside OSC sequence until we see \x1b\\
+            continue;
+        }
+
+        len += c.width().unwrap_or(0);
     }
 
     len
