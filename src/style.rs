@@ -11,3 +11,15 @@ pub trait InlineStyler {
     fn image(&self, alt: &str, url: &str) -> String;
     fn footnote(&self, text: &str) -> String;
 }
+
+
+
+/// Trait for styling heading elements.
+pub trait HeadingStyler {
+    fn h1(&self, text: &str) -> String;
+    fn h2(&self, text: &str) -> String;
+    fn h3(&self, text: &str) -> String;
+    fn h4(&self, text: &str) -> String;
+    fn h5(&self, text: &str) -> String;
+    fn h6(&self, text: &str) -> String;
+}

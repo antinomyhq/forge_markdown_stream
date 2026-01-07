@@ -5,7 +5,7 @@
 use colored::{Color, ColoredString, Colorize};
 use streamdown_parser::decode_html_entities;
 
-use crate::style::InlineStyler;
+use crate::style::{HeadingStyler, InlineStyler};
 
 /// Style configuration for a single element.
 #[derive(Clone, Debug)]
@@ -207,6 +207,32 @@ impl InlineStyler for Theme {
     }
 }
 
+impl HeadingStyler for Theme {
+    fn h1(&self, text: &str) -> String {
+        self.heading1.apply(text).to_string()
+    }
+
+    fn h2(&self, text: &str) -> String {
+        self.heading2.apply(text).to_string()
+    }
+
+    fn h3(&self, text: &str) -> String {
+        self.heading3.apply(text).to_string()
+    }
+
+    fn h4(&self, text: &str) -> String {
+        self.heading4.apply(text).to_string()
+    }
+
+    fn h5(&self, text: &str) -> String {
+        self.heading5.apply(text).to_string()
+    }
+
+    fn h6(&self, text: &str) -> String {
+        self.heading6.apply(text).to_string()
+    }
+}
+
 impl Theme {
     /// Dark theme (default).
     pub fn dark() -> Self {
@@ -342,5 +368,33 @@ impl InlineStyler for TagStyler {
 
     fn footnote(&self, text: &str) -> String {
         format!("<footnote>{}</footnote>", text)
+    }
+}
+
+
+#[cfg(test)]
+impl HeadingStyler for TagStyler {
+    fn h1(&self, text: &str) -> String {
+        format!("<h1>{}</h1>", text)
+    }
+
+    fn h2(&self, text: &str) -> String {
+        format!("<h2>{}</h2>", text)
+    }
+
+    fn h3(&self, text: &str) -> String {
+        format!("<h3>{}</h3>", text)
+    }
+
+    fn h4(&self, text: &str) -> String {
+        format!("<h4>{}</h4>", text)
+    }
+
+    fn h5(&self, text: &str) -> String {
+        format!("<h5>{}</h5>", text)
+    }
+
+    fn h6(&self, text: &str) -> String {
+        format!("<h6>{}</h6>", text)
     }
 }
