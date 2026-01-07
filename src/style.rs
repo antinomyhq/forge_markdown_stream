@@ -23,3 +23,14 @@ pub trait HeadingStyler {
     fn h5(&self, text: &str) -> String;
     fn h6(&self, text: &str) -> String;
 }
+
+
+
+/// Trait for styling list elements.
+pub trait ListStyler {
+    fn bullet_dash(&self, text: &str) -> String;
+    fn bullet_asterisk(&self, text: &str) -> String;
+    fn bullet_plus(&self, text: &str) -> String;
+    fn bullet_plus_expand(&self, text: &str) -> String;
+    fn number(&self, text: &str) -> String;
+}

@@ -5,7 +5,7 @@
 use colored::{Color, ColoredString, Colorize};
 use streamdown_parser::decode_html_entities;
 
-use crate::style::{HeadingStyler, InlineStyler};
+use crate::style::{HeadingStyler, InlineStyler, ListStyler};
 
 /// Style configuration for a single element.
 #[derive(Clone, Debug)]
@@ -123,7 +123,10 @@ pub struct Theme {
     pub heading6: Style,
 
     // List styles
-    pub bullet: Style,
+    pub bullet_dash: Style,
+    pub bullet_asterisk: Style,
+    pub bullet_plus: Style,
+    pub bullet_plus_expand: Style,
     pub list_number: Style,
     pub checkbox_checked: Style,
     pub checkbox_unchecked: Style,
@@ -233,6 +236,28 @@ impl HeadingStyler for Theme {
     }
 }
 
+impl ListStyler for Theme {
+    fn bullet_dash(&self, text: &str) -> String {
+        self.bullet_dash.apply(text).to_string()
+    }
+
+    fn bullet_asterisk(&self, text: &str) -> String {
+        self.bullet_asterisk.apply(text).to_string()
+    }
+
+    fn bullet_plus(&self, text: &str) -> String {
+        self.bullet_plus.apply(text).to_string()
+    }
+
+    fn bullet_plus_expand(&self, text: &str) -> String {
+        self.bullet_plus_expand.apply(text).to_string()
+    }
+
+    fn number(&self, text: &str) -> String {
+        self.list_number.apply(text).to_string()
+    }
+}
+
 impl Theme {
     /// Dark theme (default).
     pub fn dark() -> Self {
@@ -254,7 +279,10 @@ impl Theme {
             heading6: Style::new().fg(Color::White).bold(),
 
             // Lists
-            bullet: Style::new().fg(Color::Cyan),
+            bullet_dash: Style::new().fg(Color::Cyan),
+            bullet_asterisk: Style::new().fg(Color::Green),
+            bullet_plus: Style::new().fg(Color::Yellow),
+            bullet_plus_expand: Style::new().fg(Color::Magenta),
             list_number: Style::new().fg(Color::Cyan),
             checkbox_checked: Style::new().fg(Color::Green),
             checkbox_unchecked: Style::new().fg(Color::Red),
@@ -298,7 +326,10 @@ impl Theme {
             heading6: Style::new().fg(Color::Black).bold(),
 
             // Lists
-            bullet: Style::new().fg(Color::Blue),
+            bullet_dash: Style::new().fg(Color::Blue),
+            bullet_asterisk: Style::new().fg(Color::Green),
+            bullet_plus: Style::new().fg(Color::Magenta),
+            bullet_plus_expand: Style::new().fg(Color::Cyan),
             list_number: Style::new().fg(Color::Blue),
             checkbox_checked: Style::new().fg(Color::Green),
             checkbox_unchecked: Style::new().fg(Color::Red),
@@ -396,5 +427,29 @@ impl HeadingStyler for TagStyler {
 
     fn h6(&self, text: &str) -> String {
         format!("<h6>{}</h6>", text)
+    }
+}
+
+
+#[cfg(test)]
+impl ListStyler for TagStyler {
+    fn bullet_dash(&self, text: &str) -> String {
+        format!("<dash>{}</dash>", text)
+    }
+
+    fn bullet_asterisk(&self, text: &str) -> String {
+        format!("<asterisk>{}</asterisk>", text)
+    }
+
+    fn bullet_plus(&self, text: &str) -> String {
+        format!("<plus>{}</plus>", text)
+    }
+
+    fn bullet_plus_expand(&self, text: &str) -> String {
+        format!("<expand>{}</expand>", text)
+    }
+
+    fn number(&self, text: &str) -> String {
+        format!("<num>{}</num>", text)
     }
 }
