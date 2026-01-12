@@ -1,6 +1,6 @@
 //! Code block rendering with syntax highlighting and line wrapping.
 
-use streamdown_render::code_wrap;
+use streamdown_render::code::code_wrap;
 use syntect::easy::HighlightLines;
 use syntect::highlighting::ThemeSet;
 use syntect::parsing::SyntaxSet;
@@ -77,7 +77,7 @@ impl CodeHighlighter {
 
 #[cfg(test)]
 mod tests {
-    use streamdown_render::code_wrap;
+    use streamdown_render::code::code_wrap;
 
     #[test]
     fn test_code_wrap_short_line() {
